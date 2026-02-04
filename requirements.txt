@@ -1,0 +1,8 @@
+Plaintext
+
+streamlit
+librosa
+noisereduce
+soundfile
+pydub
+numpy
