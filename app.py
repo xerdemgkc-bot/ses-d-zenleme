@@ -1,9 +1,4 @@
-Python
-
 import streamlit as st
-import streamlit as st
-# Bu satırı en üste, diğer importların hemen altına ekle:
-st.cache_data.clear()
 import librosa
 import noisereduce as nr
 import soundfile as sf
@@ -11,49 +6,41 @@ from pydub import AudioSegment, effects
 import io
 import os
 
-# Sayfa başlığı (En sade haliyle)
+# Uygulama Başlığı
 st.title("🎙️ StudioEnhance AI")
-st.write("Ses dosyanızı yükleyin ve 'Düzenle' butonuna basın.")
+st.write("Ses dosyanızı yükleyin ve 'Sesi Düzenle' butonuna basın.")
 
-# Dosya yükleyici
+# Dosya Yükleme
 yuklenen_dosya = st.file_uploader("Dosya Seçin", type=["mp3", "wav", "m4a"])
 
 if yuklenen_dosya is not None:
-    st.audio(yuklenen_dosya) # Orijinal sesi dinle
+    st.audio(yuklenen_dosya)
     
     if st.button("SESİ DÜZENLE"):
-        with st.spinner("İşlem yapılıyor, lütfen bekleyin..."):
+        with st.spinner("Ses iyileştiriliyor..."):
             try:
-                # 1. Dosyayı oku
+                # Sesi yükle
                 data, rate = librosa.load(yuklenen_dosya, sr=None)
                 
-                # 2. Gürültü giderme
+                # Gürültü temizleme
                 temiz_data = nr.reduce_noise(y=data, sr=rate, prop_decrease=0.85)
                 
-                # 3. Geçici kayıt ve işleme
-                sf.write("temp.wav", temiz_data, rate)
-                ses = AudioSegment.from_wav("temp.wav")
+                # Geçici dosyaya yaz (pydub için)
+                sf.write("gecici.wav", temiz_data, rate)
+                ses = AudioSegment.from_wav("gecici.wav")
                 
-                # 4. Normalizasyon (Ses dengeleme)
+                # Ses seviyesi dengeleme
                 ses = effects.normalize(ses)
                 
-                # 5. Sonucu hazırla
+                # Çıktı hazırlama
                 cikti = io.BytesIO()
                 ses.export(cikti, format="mp3")
                 
-                st.success("İşlem tamamlandı!")
-                st.audio(cikti) # Düzenlenmiş sesi dinle
+                st.success("İşlem Başarılı!")
+                st.audio(cikti)
+                st.download_button("Düzenlenmiş Sesi İndir", cikti.getvalue(), "temiz_ses.mp3", "audio/mp3")
                 
-                st.download_button(
-                    label="Düzenlenmiş Sesi İndir",
-                    data=cikti.getvalue(),
-                    file_name="temiz_ses.mp3",
-                    mime="audio/mp3"
-                )
-                
-                # Temizlik
-                if os.path.exists("temp.wav"):
-                    os.remove("temp.wav")
-                    
+                if os.path.exists("gecici.wav"):
+                    os.remove("gecici.wav")
             except Exception as e:
                 st.error(f"Bir hata oluştu: {e}")
