@@ -7,62 +7,69 @@ import io
 import os
 import numpy as np
 
-st.set_page_config(page_title="Adobe Style Enhancer", page_icon="🎙️")
+st.set_page_config(page_title="Adobe Style Speech Enhancer", page_icon="🎙️")
 
-st.title("🎙️ AI Speech Enhancer")
-st.write("Adobe Podcast mantığıyla vokal restorasyonu ve dolgunlaştırma.")
+st.markdown("""
+    <style>
+    .main { background-color: #f0f2f6; }
+    .stButton>button { width: 100%; border-radius: 20px; height: 3em; background-color: #ff4b4b; color: white; }
+    </style>
+    """, unsafe_allow_stdio=True)
 
-yuklenen_dosya = st.file_uploader("Ses Dosyası (MP3/WAV)", type=["mp3", "wav", "m4a"])
+st.title("🎙️ AI Studio Enhancer")
+st.write("Adobe Podcast teknolojisine en yakın vokal restorasyon sistemi.")
 
-if yuklenen_dosya is not None:
-    st.write("### Orijinal Ses")
-    st.audio(yuklenen_dosya)
+uploaded_file = st.file_uploader("Ses dosyanızı seçin", type=["mp3", "wav", "m4a"])
+
+if uploaded_file is not None:
+    st.info("Orijinal Kayıt Yüklendi")
+    st.audio(uploaded_file)
     
-    if st.button("🪄 ADOBE TARZI İYİLEŞTİR"):
-        with st.spinner("Yapay zeka vokalini yeniden inşa ediyor..."):
+    if st.button("🪄 ADOBE TARZI SESİ YENİDEN İNŞA ET"):
+        with st.spinner("Derin öğrenme filtreleri uygulanıyor..."):
             try:
-                # 1. Sesi yüksek çözünürlükte yükle
-                data, rate = librosa.load(yuklenen_dosya, sr=44100)
+                # 1. Yüksek Çözünürlüklü Analiz
+                data, rate = librosa.load(uploaded_file, sr=44100)
                 
-                # 2. ADOBE MANTIĞI: Spektral Kapılama (Deep Noise Suppression)
-                # Gürültüyü sadece kısmıyoruz, vokal olmayan frekansları tamamen izole ediyoruz
-                temiz_data = nr.reduce_noise(
+                # 2. Spektral Subtraction (Adobe'nin temel temizlik mantığı)
+                # Gürültü profilini çok daha hassas analiz eder
+                reduced_noise = nr.reduce_noise(
                     y=data, 
                     sr=rate, 
-                    prop_decrease=1.0, # Gürültüyü %100 hedefle
-                    stationary=False,  # Değişken gürültüleri de yakala
-                    n_std_thresh_stationary=1.5,
-                    n_fft=2048
+                    prop_decrease=1.0, 
+                    stationary=False,
+                    n_fft=4096, # Daha geniş analiz penceresi (Daha net ses)
+                    time_constant_s=0.5
                 )
                 
-                # 3. VOKAL RESTORASYONU (Dolgunlaştırma)
-                sf.write("temp.wav", temiz_data, rate)
-                ses = AudioSegment.from_wav("temp.wav")
+                # 3. Geçici Dosya Oluşturma
+                sf.write("processed.wav", reduced_noise, rate)
+                audio = AudioSegment.from_wav("processed.wav")
                 
-                # Compressor (Adobe'nin o 'tok' sesini veren ana ayar)
-                # Eşiği düşük tutarak fısıltıları bile stüdyo seviyesine çekeriz
-                ses = effects.compress_dynamic_range(
-                    ses, 
-                    threshold=-22.0, 
-                    ratio=5.0, 
-                    attack=2.0, 
-                    release=100.0
+                # 4. ADOBE 'TOK SES' AYARI (Advanced Compression)
+                # Sesi stüdyo mikrofonuna yakınmış gibi dolgunlaştırır
+                audio = effects.compress_dynamic_range(
+                    audio, 
+                    threshold=-20.0, 
+                    ratio=4.5, 
+                    attack=3.0, 
+                    release=150.0
                 )
                 
-                # 4. PARLATMA (Limiter & Gain)
-                ses = ses.apply_gain(6) # Sesi güçlendir
-                ses = effects.normalize(ses) # Patlamaları önle
+                # 5. Parlatma (Vokal Boost)
+                audio = audio.apply_gain(5) # Ses gövdesini güçlendir
+                audio = effects.normalize(audio)
                 
-                # 5. Çıktı
-                cikti = io.BytesIO()
-                ses.export(cikti, format="mp3", bitrate="320k")
+                # 6. Sonuç
+                buffer = io.BytesIO()
+                audio.export(buffer, format="mp3", bitrate="320k")
                 
-                st.success("✨ Sesiniz stüdyo kalitesine getirildi!")
-                st.write("### İşlenmiş Ses")
-                st.audio(cikti)
-                st.download_button("Dosyayı İndir", cikti.getvalue(), "enhanced_speech.mp3")
+                st.success("✨ Ses restorasyonu tamamlandı!")
+                st.write("### İşlenmiş Stüdyo Kaydı")
+                st.audio(buffer)
+                st.download_button("Sesi İndir", buffer.getvalue(), "adobe_style_enhanced.mp3")
                 
-                if os.path.exists("temp.wav"):
-                    os.remove("temp.wav")
+                if os.path.exists("processed.wav"):
+                    os.remove("processed.wav")
             except Exception as e:
-                st.error(f"Hata: {e}")
+                st.error(f"Hata oluştu: {e}")
