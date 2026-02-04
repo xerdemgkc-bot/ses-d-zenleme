@@ -8,127 +8,49 @@ from pydub import AudioSegment, effects
 import io
 import os
 
-# --- SAYFA AYARLARI VE TASARIM (CSS) ---
-st.set_page_config(page_title="StudioEnhance AI", page_icon="???", layout="centered")
+# Sayfa baÅŸlÄ±ÄŸÄ± (En sade haliyle)
+st.title("ğŸ™ï¸ StudioEnhance AI")
+st.write("Ses dosyanÄ±zÄ± yÃ¼kleyin ve 'DÃ¼zenle' butonuna basÄ±n.")
 
-# Adobe tarzı karanlık tema ve şık butonlar için CSS
-st.markdown("""
-    <style>
-    /* Ana Arka Plan */
-    .stApp {
-        background-color: #121212;
-        color: #FFFFFF;
-    }
-    
-    /* Yükleme Alanı Kartı */
-    .stFileUploader {
-        background-color: #1E1E1E;
-        border-radius: 15px;
-        padding: 20px;
-        border: 1px dashed #3A3A3A;
-    }
-
-    /* Başlık Stili */
-    h1 {
-        color: #00E5FF;
-        font-family: 'Inter', sans-serif;
-        font-weight: 800;
-        text-align: center;
-    }
-
-    /* Düzenle Butonu Stili */
-    div.stButton > button:first-child {
-        background-color: #00E5FF;
-        color: #000000;
-        font-weight: bold;
-        border-radius: 30px;
-        width: 100%;
-        border: none;
-        padding: 15px;
-        transition: 0.3s;
-    }
-    
-    div.stButton > button:first-child:hover {
-        background-color: #00B8D4;
-        transform: scale(1.02);
-    }
-
-    /* Ses Oynatıcı Paneli */
-    audio {
-        border-radius: 10px;
-        width: 100%;
-    }
-    </style>
-    """, unsafe_allow_stdio=True)
-
-# --- BAŞLIK VE TANITIM ---
-st.title("??? StudioEnhance AI")
-st.markdown("<p style='text-align: center; color: #BBBBBB;'>Tek tıkla stüdyo kalitesinde ses elde edin. Gürültüyü silin, sesi parlatın.</p>", unsafe_allow_stdio=True)
-st.write("---")
-
-# --- ANA UYGULAMA MANTIĞI ---
-col1, col2 = st.columns([1, 1])
-
-yuklenen_dosya = st.file_uploader("Ses Dosyasını Buraya Bırakın", type=["mp3", "wav", "m4a"])
+# Dosya yÃ¼kleyici
+yuklenen_dosya = st.file_uploader("Dosya SeÃ§in", type=["mp3", "wav", "m4a"])
 
 if yuklenen_dosya is not None:
-    st.info("?? Dosya yüklendi. Şimdi sihirli dokunuşu yapabiliriz.")
+    st.audio(yuklenen_dosya) # Orijinal sesi dinle
     
-    # Düzenleme Butonu
-    if st.button("SESİ PROFESYONEL HALE GETİR"):
-        with st.status("?? Ses işleniyor...", expanded=True) as status:
+    if st.button("SESÄ° DÃœZENLE"):
+        with st.spinner("Ä°ÅŸlem yapÄ±lÄ±yor, lÃ¼tfen bekleyin..."):
             try:
-                st.write("?? Arka plan gürültüleri tespit ediliyor...")
+                # 1. DosyayÄ± oku
                 data, rate = librosa.load(yuklenen_dosya, sr=None)
                 
-                # AI Gürültü Azaltma
-                temiz_data = nr.reduce_noise(y=data, sr=rate, prop_decrease=0.9)
+                # 2. GÃ¼rÃ¼ltÃ¼ giderme
+                temiz_data = nr.reduce_noise(y=data, sr=rate, prop_decrease=0.85)
                 
-                st.write("? Ses netleştiriliyor ve normalize ediliyor...")
-                gecici_yol = "gecici_islem.wav"
-                sf.write(gecici_yol, temiz_data, rate)
-                ses = AudioSegment.from_wav(gecici_yol)
+                # 3. GeÃ§ici kayÄ±t ve iÅŸleme
+                sf.write("temp.wav", temiz_data, rate)
+                ses = AudioSegment.from_wav("temp.wav")
                 
-                # Dinamik Aralık Sıkıştırma (Studio Sound efekti)
+                # 4. Normalizasyon (Ses dengeleme)
                 ses = effects.normalize(ses)
-                ses = effects.compressor_sidechain(ses, target_rms=-18.0)
                 
-                # Sonuç
-                cikti_buffer = io.BytesIO()
-                ses.export(cikti_buffer, format="mp3")
+                # 5. Sonucu hazÄ±rla
+                cikti = io.BytesIO()
+                ses.export(cikti, format="mp3")
                 
-                status.update(label="? İşlem Tamamlandı!", state="complete", expanded=False)
-
-                # BAŞARI EKRANI
-                st.balloons()
-                st.success("Sesi başarıyla düzenledik!")
+                st.success("Ä°ÅŸlem tamamlandÄ±!")
+                st.audio(cikti) # DÃ¼zenlenmiÅŸ sesi dinle
                 
-                # Karşılaştırma Paneli
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    st.markdown("**Orijinal Ses**")
-                    st.audio(yuklenen_dosya)
-                with col_b:
-                    st.markdown("**Düzenlenmiş Ses**")
-                    st.audio(cikti_buffer)
-                
-                # İndirme Butonu
                 st.download_button(
-                    label="?? YÜKSEK KALİTEDE İNDİR (.MP3)",
-                    data=cikti_buffer.getvalue(),
-                    file_name="studio_enhance_output.mp3",
+                    label="DÃ¼zenlenmiÅŸ Sesi Ä°ndir",
+                    data=cikti.getvalue(),
+                    file_name="temiz_ses.mp3",
                     mime="audio/mp3"
                 )
-
-                if os.path.exists(gecici_yol):
-                    os.remove(gecici_yol)
-
+                
+                # Temizlik
+                if os.path.exists("temp.wav"):
+                    os.remove("temp.wav")
+                    
             except Exception as e:
-                st.error(f"Bir hata oluştu: {e}")
-else:
-    # Dosya yokken gösterilecek görsel bir yer tutucu (Adobe tarzı)
-    st.markdown("""
-        <div style="text-align: center; padding: 50px; color: #555555;">
-            <p>Desteklenen formatlar: MP3, WAV, M4A</p>
-        </div>
-    """, unsafe_allow_stdio=True)
+                st.error(f"Bir hata oluÅŸtu: {e}")
