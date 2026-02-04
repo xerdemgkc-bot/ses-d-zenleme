@@ -1,6 +1,9 @@
 Python
 
 import streamlit as st
+import streamlit as st
+# Bu satırı en üste, diğer importların hemen altına ekle:
+st.cache_data.clear()
 import librosa
 import noisereduce as nr
 import soundfile as sf
